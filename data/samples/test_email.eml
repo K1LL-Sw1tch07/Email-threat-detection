@@ -1,0 +1,41 @@
+From: Security Team <security@example.com>
+To: user@example.com
+Reply-To: attacker@example.net
+Subject: Urgent Account Verification
+Date: Mon, 31 Aug 2026 18:30:00 +0530
+Message-ID: <test123@example.com>
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+ boundary="boundary123"
+
+--boundary123
+Content-Type: text/plain; charset="UTF-8"
+
+Dear User,
+
+Your account requires immediate verification.
+
+Please visit:
+
+https://example.com/login
+
+Thank you,
+Security Team
+
+--boundary123
+Content-Type: text/html; charset="UTF-8"
+
+<html>
+<body>
+<p>Dear User,</p>
+
+<p>Your account requires immediate verification.</p>
+
+<a href="https://example.com/login">
+Verify Account
+</a>
+
+</body>
+</html>
+
+--boundary123--
