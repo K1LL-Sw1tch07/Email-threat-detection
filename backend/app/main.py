@@ -2,10 +2,16 @@ from pathlib import Path
 import shutil
 import tempfile
 
-from app.analyzer.header_analyzer import analyze_headers
 from fastapi import FastAPI, File, HTTPException, UploadFile
 
+from app.forensic.domain_intelligence import analyze_domain
+from app.forensic.ip_intelligence import analyze_received_chain
+from app.analyzer.content_analyzer import analyze_content
+from app.analyzer.attachment_analyzer import analyze_attachments
 from app.parser.eml_parser import parse_eml
+from app.analyzer.header_analyzer import analyze_headers
+from app.analyzer.url_analyzer import analyze_urls
+from app.analyzer.scoring import calculate_threat_score
 
 
 app = FastAPI(
@@ -50,6 +56,7 @@ async def analyze_email(file: UploadFile = File(...)):
     temp_path = None
 
     try:
+
         with tempfile.NamedTemporaryFile(
             delete=False,
             suffix=".eml"
@@ -62,14 +69,91 @@ async def analyze_email(file: UploadFile = File(...)):
 
             temp_path = Path(temp_file.name)
 
+        # -----------------------------------------
         # Parse the email
+        # -----------------------------------------
+
         result = parse_eml(temp_path)
 
-        # Preserve the original uploaded filename
+        # Preserve original filename
         result["filename"] = file.filename
 
-        # Analyze security-relevant headers
-        result["indicators"] = analyze_headers(result)
+        # -----------------------------------------
+        # Header analysis
+        # -----------------------------------------
+
+        # Header analysis
+        header_indicators = analyze_headers(
+            result
+)
+
+        # URL analysis
+        url_indicators = analyze_urls(
+            result.get("urls", [])
+)
+        domain_intelligence = []
+
+        seen_domains = set()
+
+        for url_data in result.get("urls", []):
+            domain = url_data.get("domain")
+
+            if not domain:
+             continue
+
+            domain = domain.lower().rstrip(".")
+
+            if domain in seen_domains:
+             continue
+
+            seen_domains.add(domain)
+
+            domain_intelligence.append(
+             analyze_domain(domain)
+    )
+
+        result["domain_intelligence"] = domain_intelligence
+
+        # Attachment analysis
+        attachment_indicators = analyze_attachments(
+            result.get("attachments", [])
+)
+        # Content analysis
+        content_indicators = analyze_content(
+            result.get("body", {}),
+            result.get("headers", {}).get("subject", "")
+)
+        # -----------------------------------------
+        # IP forensic intelligence
+        # -----------------------------------------
+
+        ip_intelligence = analyze_received_chain(
+            result.get("received_chain", [])
+)
+
+        result["ip_intelligence"] = ip_intelligence
+
+        # Combine all indicators
+        result["indicators"] = (
+            header_indicators +
+            url_indicators +
+            attachment_indicators+
+            content_indicators
+)
+
+        # -----------------------------------------
+        # Calculate threat score
+        # -----------------------------------------
+
+        result["threat_assessment"] = (
+            calculate_threat_score(
+                result["indicators"]
+            )
+        )
+
+        # -----------------------------------------
+        # Return result
+        # -----------------------------------------
 
         return {
             "success": True,
@@ -77,11 +161,13 @@ async def analyze_email(file: UploadFile = File(...)):
         }
 
     except Exception as error:
+
         raise HTTPException(
             status_code=500,
             detail=f"Failed to parse EML file: {error}"
         )
 
     finally:
+
         if temp_path and temp_path.exists():
             temp_path.unlink()

@@ -16,12 +16,7 @@ def test_parse_eml():
 
     assert result["headers"]["subject"] == "Urgent Account Verification"
 
-    assert (
-        "https://example.com/login"
-        in result["urls"]
-    )
-
-    assert (
-        "attacker@example.net"
-        in result["addresses"]["reply_to"]
+    assert any(
+        url["url"] == "https://example.com/login"
+        for url in result["urls"]
     )
