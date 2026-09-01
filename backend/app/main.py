@@ -2,6 +2,7 @@ from pathlib import Path
 import shutil
 import tempfile
 
+from app.analyzer.header_analyzer import analyze_headers
 from fastapi import FastAPI, File, HTTPException, UploadFile
 
 from app.parser.eml_parser import parse_eml
@@ -66,6 +67,9 @@ async def analyze_email(file: UploadFile = File(...)):
 
         # Preserve the original uploaded filename
         result["filename"] = file.filename
+
+        # Analyze security-relevant headers
+        result["indicators"] = analyze_headers(result)
 
         return {
             "success": True,

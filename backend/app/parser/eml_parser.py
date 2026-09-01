@@ -4,31 +4,62 @@ from email.message import Message
 from email.utils import getaddresses
 from pathlib import Path
 import hashlib
+import ipaddress
 import re
 
+
+# ---------------------------------------------------------
+# Regular expressions
+# ---------------------------------------------------------
 
 URL_PATTERN = re.compile(
     r"https?://[^\s<>\"]+",
     re.IGNORECASE
 )
 
+IP_PATTERN = re.compile(
+    r"\b(?:\d{1,3}\.){3}\d{1,3}\b"
+)
+
+
+# ---------------------------------------------------------
+# Basic utilities
+# ---------------------------------------------------------
+
+def calculate_sha256(data: bytes) -> str:
+    """Calculate SHA-256 hash."""
+
+    return hashlib.sha256(data).hexdigest()
+
 
 def extract_urls(text: str) -> list[str]:
-    """Extract HTTP/HTTPS URLs from text."""
+    """Extract unique HTTP/HTTPS URLs."""
 
     if not text:
         return []
 
     urls = URL_PATTERN.findall(text)
 
-    # Remove duplicates while preserving order
     return list(dict.fromkeys(urls))
 
 
-def calculate_sha256(data: bytes) -> str:
-    """Calculate SHA-256 hash of bytes."""
+def extract_ips(text: str) -> list[str]:
+    """Extract valid IPv4 addresses."""
 
-    return hashlib.sha256(data).hexdigest()
+    if not text:
+        return []
+
+    candidates = IP_PATTERN.findall(text)
+    valid_ips = []
+
+    for candidate in candidates:
+        try:
+            ipaddress.ip_address(candidate)
+            valid_ips.append(candidate)
+        except ValueError:
+            pass
+
+    return list(dict.fromkeys(valid_ips))
 
 
 def get_addresses(header_value: str | None) -> list[str]:
@@ -43,6 +74,98 @@ def get_addresses(header_value: str | None) -> list[str]:
         if address
     ]
 
+
+# ---------------------------------------------------------
+# Header analysis
+# ---------------------------------------------------------
+
+def extract_authentication_results(message: Message) -> dict:
+    """
+    Extract SPF, DKIM and DMARC results from
+    Authentication-Results and related headers.
+    """
+
+    authentication_headers = []
+
+    for key, value in message.items():
+
+        key_lower = key.lower()
+
+        if key_lower in {
+            "authentication-results",
+            "received-spf"
+        }:
+            authentication_headers.append({
+                "name": key,
+                "value": value
+            })
+
+    combined_text = " ".join(
+        item["value"]
+        for item in authentication_headers
+    ).lower()
+
+    result = {
+        "spf": "unknown",
+        "dkim": "unknown",
+        "dmarc": "unknown",
+        "raw": authentication_headers
+    }
+
+    # SPF
+    if re.search(r"\bspf\s*=\s*pass\b", combined_text):
+        result["spf"] = "pass"
+    elif re.search(r"\bspf\s*=\s*(fail|softfail|neutral|temperror|permerror)\b", combined_text):
+        match = re.search(
+            r"\bspf\s*=\s*(fail|softfail|neutral|temperror|permerror)\b",
+            combined_text
+        )
+        result["spf"] = match.group(1)
+
+    # DKIM
+    if re.search(r"\bdkim\s*=\s*pass\b", combined_text):
+        result["dkim"] = "pass"
+    elif re.search(r"\bdkim\s*=\s*(fail|neutral|temperror|permerror|none)\b", combined_text):
+        match = re.search(
+            r"\bdkim\s*=\s*(fail|neutral|temperror|permerror|none)\b",
+            combined_text
+        )
+        result["dkim"] = match.group(1)
+
+    # DMARC
+    if re.search(r"\bdmarc\s*=\s*pass\b", combined_text):
+        result["dmarc"] = "pass"
+    elif re.search(r"\bdmarc\s*=\s*(fail|temperror|permerror|none)\b", combined_text):
+        match = re.search(
+            r"\bdmarc\s*=\s*(fail|temperror|permerror|none)\b",
+            combined_text
+        )
+        result["dmarc"] = match.group(1)
+
+    return result
+
+
+def extract_received_headers(message: Message) -> list[dict]:
+    """Extract Received headers and useful information."""
+
+    received = []
+
+    for index, value in enumerate(
+        message.get_all("Received", [])
+    ):
+
+        received.append({
+            "hop": index + 1,
+            "raw": value,
+            "ips": extract_ips(value)
+        })
+
+    return received
+
+
+# ---------------------------------------------------------
+# Body extraction
+# ---------------------------------------------------------
 
 def extract_body(message: Message) -> tuple[str, str]:
     """Extract plain-text and HTML bodies."""
@@ -60,7 +183,6 @@ def extract_body(message: Message) -> tuple[str, str]:
             content_type = part.get_content_type()
             disposition = part.get_content_disposition()
 
-            # Ignore attachments
             if disposition == "attachment":
                 continue
 
@@ -91,6 +213,10 @@ def extract_body(message: Message) -> tuple[str, str]:
     return plain_text.strip(), html_text.strip()
 
 
+# ---------------------------------------------------------
+# Attachment extraction
+# ---------------------------------------------------------
+
 def extract_attachments(message: Message) -> list[dict]:
     """Extract attachment metadata."""
 
@@ -111,25 +237,42 @@ def extract_attachments(message: Message) -> list[dict]:
         except Exception:
             payload = b""
 
-        attachment = {
+        attachments.append({
             "filename": filename,
             "content_type": part.get_content_type(),
             "size": len(payload),
-            "sha256": calculate_sha256(payload),
-        }
-
-        attachments.append(attachment)
+            "sha256": calculate_sha256(payload)
+        })
 
     return attachments
 
 
+# ---------------------------------------------------------
+# Domain extraction
+# ---------------------------------------------------------
+
+def extract_domain(email_address: str | None) -> str | None:
+    """Extract domain from an email address."""
+
+    if not email_address or "@" not in email_address:
+        return None
+
+    return email_address.rsplit("@", 1)[1].lower()
+
+
+# ---------------------------------------------------------
+# Main parser
+# ---------------------------------------------------------
+
 def parse_eml(file_path: str | Path) -> dict:
-    """Parse an EML file and return structured email information."""
+    """Parse an EML file into structured forensic data."""
 
     file_path = Path(file_path)
 
     if not file_path.exists():
-        raise FileNotFoundError(f"File not found: {file_path}")
+        raise FileNotFoundError(
+            f"File not found: {file_path}"
+        )
 
     raw_data = file_path.read_bytes()
 
@@ -137,15 +280,82 @@ def parse_eml(file_path: str | Path) -> dict:
         policy=policy.default
     ).parsebytes(raw_data)
 
+    # -------------------------
+    # Body
+    # -------------------------
+
     plain_text, html_text = extract_body(message)
 
-    # Collect URLs from both body formats
+    # -------------------------
+    # URLs
+    # -------------------------
+
     urls = extract_urls(
         plain_text + "\n" + html_text
     )
 
-    # Preserve all headers
-    headers = [
+    url_details = []
+
+    for url in urls:
+
+        domain_match = re.search(
+            r"https?://([^/:?#]+)",
+            url,
+            re.IGNORECASE
+        )
+
+        domain = (
+            domain_match.group(1).lower()
+            if domain_match
+            else None
+        )
+
+        url_details.append({
+            "url": url,
+            "domain": domain
+        })
+
+    # -------------------------
+    # Headers
+    # -------------------------
+
+    headers = {
+        "from": message.get("From"),
+        "to": message.get("To"),
+        "cc": message.get("Cc"),
+        "bcc": message.get("Bcc"),
+        "reply_to": message.get("Reply-To"),
+        "subject": message.get("Subject"),
+        "date": message.get("Date"),
+        "message_id": message.get("Message-ID"),
+        "return_path": message.get("Return-Path")
+    }
+
+    # -------------------------
+    # Addresses
+    # -------------------------
+
+    from_addresses = get_addresses(
+        message.get("From")
+    )
+
+    to_addresses = get_addresses(
+        message.get("To")
+    )
+
+    cc_addresses = get_addresses(
+        message.get("Cc")
+    )
+
+    reply_to_addresses = get_addresses(
+        message.get("Reply-To")
+    )
+
+    # -------------------------
+    # All headers
+    # -------------------------
+
+    all_headers = [
         {
             "name": key,
             "value": value
@@ -153,46 +363,82 @@ def parse_eml(file_path: str | Path) -> dict:
         for key, value in message.items()
     ]
 
-    received_headers = [
-        value
-        for key, value in message.items()
-        if key.lower() == "received"
-    ]
+    # -------------------------
+    # Authentication
+    # -------------------------
 
-    result = {
+    authentication = extract_authentication_results(
+        message
+    )
+
+    # -------------------------
+    # Received chain
+    # -------------------------
+
+    received_headers = extract_received_headers(
+        message
+    )
+
+    # -------------------------
+    # Attachments
+    # -------------------------
+
+    attachments = extract_attachments(
+        message
+    )
+
+    # -------------------------
+    # Domains
+    # -------------------------
+
+    sender_domain = None
+
+    if from_addresses:
+        sender_domain = extract_domain(
+            from_addresses[0]
+        )
+
+    reply_to_domain = None
+
+    if reply_to_addresses:
+        reply_to_domain = extract_domain(
+            reply_to_addresses[0]
+        )
+
+    # -------------------------
+    # Final structured result
+    # -------------------------
+
+    return {
+
         "filename": file_path.name,
 
-        "headers": {
-            "from": message.get("From"),
-            "to": message.get("To"),
-            "cc": message.get("Cc"),
-            "bcc": message.get("Bcc"),
-            "reply_to": message.get("Reply-To"),
-            "subject": message.get("Subject"),
-            "date": message.get("Date"),
-            "message_id": message.get("Message-ID"),
-            "return_path": message.get("Return-Path"),
-        },
+        "headers": headers,
 
         "addresses": {
-            "from": get_addresses(message.get("From")),
-            "to": get_addresses(message.get("To")),
-            "cc": get_addresses(message.get("Cc")),
-            "reply_to": get_addresses(message.get("Reply-To")),
+            "from": from_addresses,
+            "to": to_addresses,
+            "cc": cc_addresses,
+            "reply_to": reply_to_addresses
         },
 
-        "received_headers": received_headers,
+        "domains": {
+            "sender_domain": sender_domain,
+            "reply_to_domain": reply_to_domain
+        },
 
-        "all_headers": headers,
+        "authentication": authentication,
+
+        "received_chain": received_headers,
 
         "body": {
             "plain_text": plain_text,
-            "html": html_text,
+            "html": html_text
         },
 
-        "urls": urls,
+        "urls": url_details,
 
-        "attachments": extract_attachments(message),
+        "attachments": attachments,
+
+        "all_headers": all_headers
     }
-
-    return result

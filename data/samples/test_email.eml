@@ -5,6 +5,15 @@ Subject: Urgent Account Verification
 Date: Mon, 31 Aug 2026 18:30:00 +0530
 Message-ID: <test123@example.com>
 MIME-Version: 1.0
+Authentication-Results: mx.example.com;
+       spf=fail smtp.mailfrom=example.com;
+       dkim=fail;
+       dmarc=fail header.from=example.com
+Received-SPF: fail (example.com: domain of security@example.com does not designate 203.0.113.25 as permitted sender)
+Received: from suspicious.example.net (suspicious.example.net [203.0.113.25])
+        by mx.example.com
+        with ESMTPS;
+        Mon, 31 Aug 2026 18:30:00 +0530
 Content-Type: multipart/alternative;
  boundary="boundary123"
 
