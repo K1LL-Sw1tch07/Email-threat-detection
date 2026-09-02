@@ -3,22 +3,38 @@ from email.parser import BytesParser
 from email.message import Message
 from email.utils import getaddresses
 from pathlib import Path
+from urllib.parse import urlparse
 import hashlib
 import ipaddress
 import re
-from urllib.parse import urlparse
 
 
+# ---------------------------------------------------------
+# URL normalization
+# ---------------------------------------------------------
 
 def normalize_url(url: str) -> str:
     """
-    Normalize a URL extracted from plain text, HTML, or Markdown-like content.
+    Normalize a URL extracted from plain text, HTML, or Markdown.
     """
 
     if not url:
         return ""
 
-    # Find the first HTTP/HTTPS URL.
+    url = url.strip()
+
+    # Handle Markdown links:
+    # [https://example.com/login](https://example.com/login)
+    markdown_match = re.match(
+        r"\[([^\]]+)\]\((https?://[^)\s]+)\)",
+        url,
+        re.IGNORECASE
+    )
+
+    if markdown_match:
+        url = markdown_match.group(2)
+
+    # Find the first HTTP/HTTPS URL
     match = re.search(
         r"https?://[^\s<>\[\]()\"']+",
         url,
@@ -30,17 +46,23 @@ def normalize_url(url: str) -> str:
 
     normalized_url = match.group(0)
 
-    # Remove common trailing punctuation.
+    # Remove common trailing punctuation
     normalized_url = normalized_url.rstrip(".,;:!?")
 
     return normalized_url
+
+
 # ---------------------------------------------------------
 # Regular expressions
 # ---------------------------------------------------------
 
 URL_PATTERN = re.compile(
-    r"https?://[^\s<>\"]+",
-    re.IGNORECASE
+    r"""
+    \[[^\]]+\]\(https?://[^)\s]+\)
+    |
+    https?://[^\s<>\[\]()\"']+
+    """,
+    re.IGNORECASE | re.VERBOSE
 )
 
 IP_PATTERN = re.compile(
@@ -112,13 +134,12 @@ def get_addresses(header_value: str | None) -> list[str]:
 
 
 # ---------------------------------------------------------
-# Header analysis
+# Authentication analysis
 # ---------------------------------------------------------
 
 def extract_authentication_results(message: Message) -> dict:
     """
-    Extract SPF, DKIM and DMARC results from
-    Authentication-Results and related headers.
+    Extract SPF, DKIM and DMARC results.
     """
 
     authentication_headers = []
@@ -151,7 +172,11 @@ def extract_authentication_results(message: Message) -> dict:
     # SPF
     if re.search(r"\bspf\s*=\s*pass\b", combined_text):
         result["spf"] = "pass"
-    elif re.search(r"\bspf\s*=\s*(fail|softfail|neutral|temperror|permerror)\b", combined_text):
+
+    elif re.search(
+        r"\bspf\s*=\s*(fail|softfail|neutral|temperror|permerror)\b",
+        combined_text
+    ):
         match = re.search(
             r"\bspf\s*=\s*(fail|softfail|neutral|temperror|permerror)\b",
             combined_text
@@ -161,7 +186,11 @@ def extract_authentication_results(message: Message) -> dict:
     # DKIM
     if re.search(r"\bdkim\s*=\s*pass\b", combined_text):
         result["dkim"] = "pass"
-    elif re.search(r"\bdkim\s*=\s*(fail|neutral|temperror|permerror|none)\b", combined_text):
+
+    elif re.search(
+        r"\bdkim\s*=\s*(fail|neutral|temperror|permerror|none)\b",
+        combined_text
+    ):
         match = re.search(
             r"\bdkim\s*=\s*(fail|neutral|temperror|permerror|none)\b",
             combined_text
@@ -171,7 +200,11 @@ def extract_authentication_results(message: Message) -> dict:
     # DMARC
     if re.search(r"\bdmarc\s*=\s*pass\b", combined_text):
         result["dmarc"] = "pass"
-    elif re.search(r"\bdmarc\s*=\s*(fail|temperror|permerror|none)\b", combined_text):
+
+    elif re.search(
+        r"\bdmarc\s*=\s*(fail|temperror|permerror|none)\b",
+        combined_text
+    ):
         match = re.search(
             r"\bdmarc\s*=\s*(fail|temperror|permerror|none)\b",
             combined_text
@@ -180,6 +213,10 @@ def extract_authentication_results(message: Message) -> dict:
 
     return result
 
+
+# ---------------------------------------------------------
+# Received header analysis
+# ---------------------------------------------------------
 
 def extract_received_headers(message: Message) -> list[dict]:
     """Extract Received headers with IP classification."""
@@ -197,6 +234,7 @@ def extract_received_headers(message: Message) -> list[dict]:
         documentation_ips = []
 
         for ip in ips:
+
             try:
                 address = ipaddress.ip_address(ip)
 
@@ -215,15 +253,18 @@ def extract_received_headers(message: Message) -> list[dict]:
                 if address.is_link_local:
                     private_ips.append(ip)
 
-                if address.is_private and getattr(
-                    address,
-                    "is_global",
-                    False
-                ) is False:
-                    if ip.startswith(
-                        ("192.0.2.", "198.51.100.", "203.0.113.")
-                    ):
-                        documentation_ips.append(ip)
+                if (
+                    address.is_private
+                    and getattr(address, "is_global", False) is False
+                    and ip.startswith(
+                        (
+                            "192.0.2.",
+                            "198.51.100.",
+                            "203.0.113."
+                        )
+                    )
+                ):
+                    documentation_ips.append(ip)
 
             except ValueError:
                 continue
@@ -353,21 +394,22 @@ def parse_eml(file_path: str | Path) -> dict:
         )
 
     raw_data = file_path.read_bytes()
+
     file_sha256 = calculate_sha256(raw_data)
 
     message = BytesParser(
         policy=policy.default
     ).parsebytes(raw_data)
 
-    # -------------------------
+    # -----------------------------------------------------
     # Body
-    # -------------------------
+    # -----------------------------------------------------
 
     plain_text, html_text = extract_body(message)
 
-    # -------------------------
+    # -----------------------------------------------------
     # URLs
-    # -------------------------
+    # -----------------------------------------------------
 
     urls = extract_urls(
         plain_text + "\n" + html_text
@@ -380,19 +422,24 @@ def parse_eml(file_path: str | Path) -> dict:
         parsed_url = urlparse(url)
 
         domain = (
-             parsed_url.hostname.lower().rstrip(".")
-             if parsed_url.hostname
-             else None
-    )
+            parsed_url.hostname.lower().rstrip(".")
+            if parsed_url.hostname
+            else None
+        )
 
         url_details.append({
-             "url": url,
-             "domain": domain
-    })
+            "url": url,
+            "domain": domain,
+            "scheme": (
+                parsed_url.scheme.lower()
+                if parsed_url.scheme
+                else None
+            )
+        })
 
-    # -------------------------
+    # -----------------------------------------------------
     # Headers
-    # -------------------------
+    # -----------------------------------------------------
 
     headers = {
         "from": message.get("From"),
@@ -406,9 +453,9 @@ def parse_eml(file_path: str | Path) -> dict:
         "return_path": message.get("Return-Path")
     }
 
-    # -------------------------
+    # -----------------------------------------------------
     # Addresses
-    # -------------------------
+    # -----------------------------------------------------
 
     from_addresses = get_addresses(
         message.get("From")
@@ -426,9 +473,9 @@ def parse_eml(file_path: str | Path) -> dict:
         message.get("Reply-To")
     )
 
-    # -------------------------
+    # -----------------------------------------------------
     # All headers
-    # -------------------------
+    # -----------------------------------------------------
 
     all_headers = [
         {
@@ -438,33 +485,33 @@ def parse_eml(file_path: str | Path) -> dict:
         for key, value in message.items()
     ]
 
-    # -------------------------
+    # -----------------------------------------------------
     # Authentication
-    # -------------------------
+    # -----------------------------------------------------
 
     authentication = extract_authentication_results(
         message
     )
 
-    # -------------------------
+    # -----------------------------------------------------
     # Received chain
-    # -------------------------
+    # -----------------------------------------------------
 
     received_headers = extract_received_headers(
         message
     )
 
-    # -------------------------
+    # -----------------------------------------------------
     # Attachments
-    # -------------------------
+    # -----------------------------------------------------
 
     attachments = extract_attachments(
         message
     )
 
-    # -------------------------
+    # -----------------------------------------------------
     # Domains
-    # -------------------------
+    # -----------------------------------------------------
 
     sender_domain = None
 
@@ -480,12 +527,11 @@ def parse_eml(file_path: str | Path) -> dict:
             reply_to_addresses[0]
         )
 
-    # -------------------------
+    # -----------------------------------------------------
     # Final structured result
-    # -------------------------
+    # -----------------------------------------------------
 
     return {
-
         "filename": file_path.name,
         "file_sha256": file_sha256,
 

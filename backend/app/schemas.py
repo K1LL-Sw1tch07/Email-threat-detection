@@ -36,6 +36,12 @@ class AnalysisResponse(BaseModel):
     correlations: dict[str, Any]
     indicators: list[dict[str, Any]]
     threat_assessment: ThreatAssessment
+    ai_evidence: dict[str, Any]
+    phishing_assessment: dict[str, Any]
+    social_engineering_assessment: dict[str, Any]
+    attack_type_assessment: dict[str, Any]
+    investigation_summary: dict[str, Any]
+    llm_investigation: dict[str, Any]
 
 
 class AnalyzeEmailResponse(BaseModel):
