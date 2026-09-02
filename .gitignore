@@ -1,26 +1,37 @@
 # Python
-__pycache__/
+
+**pycache**/
 *.py[cod]
 *.pyo
 
 # Virtual environment
+
 venv/
 .venv/
 
 # Environment variables
+
 .env
 .env.*
 
 # Uploaded emails
+
 backend/uploads/*
 !backend/uploads/.gitkeep
 
 # Test files
+
 .pytest_cache/
 
 # IDE
+
 .vscode/
 
 # OS
+
 .DS_Store
 Thumbs.db
+
+# GeoIP databases
+
+backend/data/geoip/

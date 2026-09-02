@@ -6,8 +6,34 @@ from pathlib import Path
 import hashlib
 import ipaddress
 import re
+from urllib.parse import urlparse
 
 
+
+def normalize_url(url: str) -> str:
+    """
+    Normalize a URL extracted from plain text, HTML, or Markdown-like content.
+    """
+
+    if not url:
+        return ""
+
+    # Find the first HTTP/HTTPS URL.
+    match = re.search(
+        r"https?://[^\s<>\[\]()\"']+",
+        url,
+        re.IGNORECASE
+    )
+
+    if not match:
+        return ""
+
+    normalized_url = match.group(0)
+
+    # Remove common trailing punctuation.
+    normalized_url = normalized_url.rstrip(".,;:!?")
+
+    return normalized_url
 # ---------------------------------------------------------
 # Regular expressions
 # ---------------------------------------------------------
@@ -33,14 +59,24 @@ def calculate_sha256(data: bytes) -> str:
 
 
 def extract_urls(text: str) -> list[str]:
-    """Extract unique HTTP/HTTPS URLs."""
+    """
+    Extract and normalize unique HTTP/HTTPS URLs.
+    """
 
     if not text:
         return []
 
-    urls = URL_PATTERN.findall(text)
+    raw_urls = URL_PATTERN.findall(text)
 
-    return list(dict.fromkeys(urls))
+    normalized_urls = []
+
+    for raw_url in raw_urls:
+        normalized_url = normalize_url(raw_url)
+
+        if normalized_url:
+            normalized_urls.append(normalized_url)
+
+    return list(dict.fromkeys(normalized_urls))
 
 
 def extract_ips(text: str) -> list[str]:
@@ -298,22 +334,18 @@ def parse_eml(file_path: str | Path) -> dict:
 
     for url in urls:
 
-        domain_match = re.search(
-            r"https?://([^/:?#]+)",
-            url,
-            re.IGNORECASE
-        )
+        parsed_url = urlparse(url)
 
         domain = (
-            domain_match.group(1).lower()
-            if domain_match
-            else None
-        )
+             parsed_url.hostname.lower().rstrip(".")
+             if parsed_url.hostname
+             else None
+    )
 
         url_details.append({
-            "url": url,
-            "domain": domain
-        })
+             "url": url,
+             "domain": domain
+    })
 
     # -------------------------
     # Headers

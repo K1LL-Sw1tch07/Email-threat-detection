@@ -1,0 +1,26 @@
+From: Security Team <security@example.com>
+To: user@example.com
+Subject: Important Invoice
+Date: Tue, 01 Sep 2026 18:00:00 +0530
+Message-ID: <attachment-test@example.com>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="boundary123"
+
+--boundary123
+Content-Type: text/plain; charset="UTF-8"
+
+Dear User,
+
+Please find the requested invoice attached.
+
+Regards,
+Security Team
+
+--boundary123
+Content-Type: application/octet-stream
+Content-Disposition: attachment; filename="invoice.pdf.exe"
+Content-Transfer-Encoding: base64
+
+VGhpcyBpcyBhIGhhcm1sZXNzIHRlc3QgYXR0YWNobWVudC4=
+
+--boundary123--

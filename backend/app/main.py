@@ -4,6 +4,7 @@ import tempfile
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 
+from app.forensic.correlation import correlate_email
 from app.forensic.domain_intelligence import analyze_domain
 from app.forensic.ip_intelligence import analyze_received_chain
 from app.analyzer.content_analyzer import analyze_content
@@ -132,6 +133,8 @@ async def analyze_email(file: UploadFile = File(...)):
 )
 
         result["ip_intelligence"] = ip_intelligence
+
+        result["correlations"] = correlate_email(result)
 
         # Combine all indicators
         result["indicators"] = (

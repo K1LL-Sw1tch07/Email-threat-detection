@@ -2,7 +2,7 @@ import ipaddress
 
 from app.forensic.geolocation import geolocate_ip
 from app.forensic.ip_enrichment import enrich_ip
-
+from app.forensic.reverse_dns import reverse_dns_lookup
 
 DOCUMENTATION_NETWORKS = [
     ipaddress.ip_network("192.0.2.0/24"),
@@ -169,6 +169,9 @@ def analyze_received_chain(
             # ---------------------------------------------
 
             analysis["enrichment"] = enrich_ip(ip)
+
+            #reverse dns lookup
+            analysis["reverse_dns"] = reverse_dns_lookup(ip)
 
             results.append(analysis)
 
