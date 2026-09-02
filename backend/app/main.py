@@ -3,6 +3,7 @@ import shutil
 import tempfile
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.forensic.origin_analysis import analyze_origin
 from app.schemas import AnalyzeEmailResponse
@@ -30,7 +31,16 @@ app = FastAPI(
     description="AI-powered Email Threat Detection and Forensic Intelligence Platform",
     version="0.1.0",
 )
-
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/")
 def root():
