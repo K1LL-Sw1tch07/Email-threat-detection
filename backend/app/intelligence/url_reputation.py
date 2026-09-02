@@ -1,6 +1,7 @@
-import base64
 import os
+import base64
 from typing import Any
+
 
 import httpx
 
@@ -61,9 +62,7 @@ def check_url_reputation(
 
     normalized_url = url.strip()
 
-    api_key = os.getenv(
-        "VIRUSTOTAL_API_KEY"
-    )
+    api_key = os.getenv("VIRUSTOTAL_API_KEY")
 
     if not api_key:
         return _neutral_result(
