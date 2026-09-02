@@ -182,18 +182,60 @@ def extract_authentication_results(message: Message) -> dict:
 
 
 def extract_received_headers(message: Message) -> list[dict]:
-    """Extract Received headers and useful information."""
+    """Extract Received headers with IP classification."""
 
     received = []
 
     for index, value in enumerate(
         message.get_all("Received", [])
     ):
+        ips = extract_ips(value)
+
+        global_ips = []
+        private_ips = []
+        reserved_ips = []
+        documentation_ips = []
+
+        for ip in ips:
+            try:
+                address = ipaddress.ip_address(ip)
+
+                if address.is_global:
+                    global_ips.append(ip)
+
+                if address.is_private:
+                    private_ips.append(ip)
+
+                if address.is_reserved:
+                    reserved_ips.append(ip)
+
+                if address.is_loopback:
+                    private_ips.append(ip)
+
+                if address.is_link_local:
+                    private_ips.append(ip)
+
+                if address.is_private and getattr(
+                    address,
+                    "is_global",
+                    False
+                ) is False:
+                    if ip.startswith(
+                        ("192.0.2.", "198.51.100.", "203.0.113.")
+                    ):
+                        documentation_ips.append(ip)
+
+            except ValueError:
+                continue
 
         received.append({
             "hop": index + 1,
             "raw": value,
-            "ips": extract_ips(value)
+            "ips": ips,
+            "global_ips": list(dict.fromkeys(global_ips)),
+            "private_ips": list(dict.fromkeys(private_ips)),
+            "reserved_ips": list(dict.fromkeys(reserved_ips)),
+            "documentation_ips": list(dict.fromkeys(documentation_ips))
         })
 
     return received
@@ -311,6 +353,7 @@ def parse_eml(file_path: str | Path) -> dict:
         )
 
     raw_data = file_path.read_bytes()
+    file_sha256 = calculate_sha256(raw_data)
 
     message = BytesParser(
         policy=policy.default
@@ -444,6 +487,7 @@ def parse_eml(file_path: str | Path) -> dict:
     return {
 
         "filename": file_path.name,
+        "file_sha256": file_sha256,
 
         "headers": headers,
 

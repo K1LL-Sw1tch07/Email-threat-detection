@@ -1,5 +1,20 @@
 # backend/app/analyzer/scoring.py
 
+"""
+Explainable threat scoring for the email forensic engine.
+
+The scoring model is deterministic for the MVP.
+Each evidence category has a bounded contribution so
+related indicators cannot inflate the final score simply
+because there are many of them.
+"""
+
+from collections import defaultdict
+
+
+# ---------------------------------------------------------
+# Individual indicator scores
+# ---------------------------------------------------------
 
 INDICATOR_SCORES = {
 
@@ -7,6 +22,7 @@ INDICATOR_SCORES = {
     "SPF_FAILURE": 20,
     "DKIM_FAILURE": 15,
     "DMARC_FAILURE": 20,
+    "AUTHENTICATION_UNKNOWN": 5,
 
     # Identity
     "REPLY_TO_MISMATCH": 15,
@@ -36,19 +52,100 @@ INDICATOR_SCORES = {
     "SUSPICIOUS_CALL_TO_ACTION": 10,
     "EXCESSIVE_EXCLAMATION": 5,
     "CREDENTIAL_REQUEST_LANGUAGE": 20,
-
-    # Authentication missing
-    "AUTHENTICATION_UNKNOWN": 5,
 }
 
 
-def calculate_threat_score(indicators: list[dict]) -> dict:
+# ---------------------------------------------------------
+# Maximum contribution from each evidence category
+# ---------------------------------------------------------
+
+CATEGORY_LIMITS = {
+    "authentication": 25,
+    "identity": 20,
+    "url": 20,
+    "attachment": 20,
+    "content": 15,
+}
+
+
+# ---------------------------------------------------------
+# Indicator → category mapping
+# ---------------------------------------------------------
+
+INDICATOR_CATEGORIES = {
+
+    # Authentication
+    "SPF_FAILURE": "authentication",
+    "DKIM_FAILURE": "authentication",
+    "DMARC_FAILURE": "authentication",
+    "AUTHENTICATION_UNKNOWN": "authentication",
+
+    # Identity
+    "REPLY_TO_MISMATCH": "identity",
+    "REPLY_DOMAIN_MISMATCH": "identity",
+
+    # URL
+    "IP_BASED_URL": "url",
+    "UNENCRYPTED_URL": "url",
+    "URL_SHORTENER": "url",
+    "LONG_URL": "url",
+    "SUSPICIOUS_URL_KEYWORD": "url",
+    "PUNYCODE_DOMAIN": "url",
+    "EXCESSIVE_SUBDOMAINS": "url",
+
+    # Attachments
+    "DANGEROUS_ATTACHMENT": "attachment",
+    "MACRO_ENABLED_DOCUMENT": "attachment",
+    "ARCHIVE_ATTACHMENT": "attachment",
+    "DOUBLE_EXTENSION": "attachment",
+    "MIME_EXTENSION_MISMATCH": "attachment",
+
+    # Content
+    "URGENCY_LANGUAGE": "content",
+    "ACCOUNT_SECURITY_LANGUAGE": "content",
+    "FINANCIAL_LANGUAGE": "content",
+    "THREAT_LANGUAGE": "content",
+    "SUSPICIOUS_CALL_TO_ACTION": "content",
+    "EXCESSIVE_EXCLAMATION": "content",
+    "CREDENTIAL_REQUEST_LANGUAGE": "content",
+}
+
+
+# ---------------------------------------------------------
+# Helper
+# ---------------------------------------------------------
+
+def _category_for(indicator_type: str) -> str:
+
+    return INDICATOR_CATEGORIES.get(
+        indicator_type,
+        "other"
+    )
+
+
+# ---------------------------------------------------------
+# Main scoring function
+# ---------------------------------------------------------
+
+def calculate_threat_score(
+    indicators: list[dict]
+) -> dict:
+
     """
-    Calculate an explainable threat score from detected indicators.
+    Calculate a bounded and explainable threat score.
+
+    Each evidence category has its own maximum contribution.
+    This prevents one category from dominating the entire score.
     """
 
-    score = 0
-    score_breakdown = []
+    category_totals = defaultdict(int)
+
+    raw_breakdown = []
+
+
+    # -----------------------------------------------------
+    # Calculate raw indicator scores
+    # -----------------------------------------------------
 
     for indicator in indicators:
 
@@ -59,98 +156,150 @@ def calculate_threat_score(indicators: list[dict]) -> dict:
             0
         )
 
-        score += points
+        if points <= 0:
+            continue
 
-        if points > 0:
+        category = _category_for(
+            indicator_type
+        )
 
-            score_breakdown.append({
-                "indicator": indicator_type,
-                "points": points
+        category_totals[category] += points
+
+        raw_breakdown.append({
+            "indicator": indicator_type,
+            "points": points,
+            "category": category,
+        })
+
+
+    # -----------------------------------------------------
+    # Apply category limits
+    # -----------------------------------------------------
+
+    category_breakdown = []
+
+    bounded_score = 0
+
+    for category, limit in CATEGORY_LIMITS.items():
+
+        raw_score = category_totals.get(
+            category,
+            0
+        )
+
+        capped_score = min(
+            raw_score,
+            limit
+        )
+
+        bounded_score += capped_score
+
+        if raw_score > 0:
+
+            category_breakdown.append({
+
+                "category": category,
+
+                "score": capped_score,
+
+                "max_score": limit,
+
+                "raw_score": raw_score,
             })
 
-    # Keep score between 0 and 100
-    score = min(score, 100)
 
-    # -----------------------------------------
-    # Determine risk level
-    # -----------------------------------------
+    # -----------------------------------------------------
+    # Normalize to 0–100
+    # -----------------------------------------------------
+
+    score = min(
+        bounded_score,
+        100
+    )
+
+    
+
+
+    # -----------------------------------------------------
+    # Risk level
+    # -----------------------------------------------------
 
     if score >= 75:
 
         risk_level = "CRITICAL"
 
-    elif score >= 50:
-
-        risk_level = "HIGH"
-
-    elif score >= 25:
-
-        risk_level = "MEDIUM"
-
-    else:
-
-        risk_level = "LOW"
-
-    # -----------------------------------------
-    # Determine verdict
-    # -----------------------------------------
-
-    if score >= 75:
-
         verdict = "LIKELY_MALICIOUS"
 
     elif score >= 50:
+
+        risk_level = "HIGH"
 
         verdict = "SUSPICIOUS"
 
     elif score >= 25:
 
+        risk_level = "MEDIUM"
+
         verdict = "POTENTIALLY_SUSPICIOUS"
 
     else:
 
+        risk_level = "LOW"
+
         verdict = "LIKELY_SAFE"
 
-    # -----------------------------------------
-    # Confidence
-    # -----------------------------------------
 
-    # Confidence is derived from the amount and
-    # severity of supporting evidence.
+    # -----------------------------------------------------
+    # Confidence
+    # -----------------------------------------------------
 
     high_severity_count = sum(
+
         1
+
         for indicator in indicators
+
         if indicator.get("severity") == "HIGH"
     )
 
+
     medium_severity_count = sum(
+
         1
+
         for indicator in indicators
+
         if indicator.get("severity") == "MEDIUM"
     )
 
+
     evidence_count = len(indicators)
+
 
     confidence = 0.50
 
-    confidence += min(
-        high_severity_count * 0.10,
-        0.30
-    )
 
     confidence += min(
-        medium_severity_count * 0.05,
-        0.15
+        high_severity_count * 0.08,
+        0.24
     )
+
+
+    confidence += min(
+        medium_severity_count * 0.04,
+        0.12
+    )
+
 
     confidence += min(
         evidence_count * 0.01,
         0.05
     )
 
-    # A very low-risk email should not receive
+
+    # Low-risk emails should not receive
     # artificially high confidence.
+
     if score < 25:
 
         confidence = min(
@@ -158,71 +307,86 @@ def calculate_threat_score(indicators: list[dict]) -> dict:
             0.70
         )
 
+
     confidence = min(
         confidence,
         0.99
     )
+
 
     confidence = round(
         confidence,
         2
     )
 
-    # -----------------------------------------
-    # Generate evidence
-    # -----------------------------------------
 
-    evidence = []
+    # -----------------------------------------------------
+    # Evidence
+    # -----------------------------------------------------
 
-    for indicator in indicators:
+    evidence = [
 
-        description = indicator.get(
-            "description"
-        )
+        indicator.get("description")
 
-        if description:
-            evidence.append(description)
+        for indicator in indicators
 
-    # -----------------------------------------
+        if indicator.get("description")
+    ]
+
+
+    # -----------------------------------------------------
     # Recommended actions
-    # -----------------------------------------
-
-    recommended_actions = []
+    # -----------------------------------------------------
 
     if score >= 75:
 
-        recommended_actions.extend([
+        recommended_actions = [
+
             "Do not click links in the email.",
+
             "Do not open or execute attachments.",
+
             "Do not reply to the sender.",
+
             "Verify the sender through an independent channel.",
-            "Quarantine the email for further investigation."
-        ])
+
+            "Quarantine the email for further investigation.",
+        ]
+
 
     elif score >= 50:
 
-        recommended_actions.extend([
+        recommended_actions = [
+
             "Treat the email with caution.",
+
             "Avoid clicking links or opening attachments.",
-            "Verify the sender independently."
-        ])
+
+            "Verify the sender independently.",
+        ]
+
 
     elif score >= 25:
 
-        recommended_actions.extend([
+        recommended_actions = [
+
             "Review the email carefully.",
-            "Verify suspicious links and sender information."
-        ])
+
+            "Verify suspicious links and sender information.",
+        ]
+
 
     else:
 
-        recommended_actions.append(
-            "No immediate high-risk indicators detected."
-        )
+        recommended_actions = [
 
-    # -----------------------------------------
+            "No immediate high-risk indicators detected."
+        ]
+
+
+    # -----------------------------------------------------
     # Final assessment
-    # -----------------------------------------
+    # -----------------------------------------------------
 
     return {
 
@@ -234,9 +398,11 @@ def calculate_threat_score(indicators: list[dict]) -> dict:
 
         "confidence": confidence,
 
-        "breakdown": score_breakdown,
+        "breakdown": raw_breakdown,
+
+        "category_breakdown": category_breakdown,
 
         "evidence": evidence,
 
-        "recommended_actions": recommended_actions
+        "recommended_actions": recommended_actions,
     }

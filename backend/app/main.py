@@ -4,6 +4,8 @@ import tempfile
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 
+from app.forensic.origin_analysis import analyze_origin
+from app.schemas import AnalyzeEmailResponse
 from app.forensic.correlation import correlate_email
 from app.forensic.domain_intelligence import analyze_domain
 from app.forensic.ip_intelligence import analyze_received_chain
@@ -38,7 +40,10 @@ def health():
     }
 
 
-@app.post("/api/email/analyze")
+@app.post(
+    "/api/email/analyze",
+    response_model=AnalyzeEmailResponse
+)
 async def analyze_email(file: UploadFile = File(...)):
 
     if not file.filename:
@@ -131,8 +136,12 @@ async def analyze_email(file: UploadFile = File(...)):
         ip_intelligence = analyze_received_chain(
             result.get("received_chain", [])
 )
+        origin_analysis = analyze_origin(
+            result.get("received_chain", [])
+)
 
         result["ip_intelligence"] = ip_intelligence
+        result["origin_analysis"] = origin_analysis
 
         result["correlations"] = correlate_email(result)
 
