@@ -52,19 +52,27 @@ INDICATOR_SCORES = {
     "SUSPICIOUS_CALL_TO_ACTION": 10,
     "EXCESSIVE_EXCLAMATION": 5,
     "CREDENTIAL_REQUEST_LANGUAGE": 20,
+
+     # Reputation / Threat Intelligence
+    "IP_REPUTATION_HIGH": 10,
+    "IP_REPUTATION_SUSPICIOUS": 5,
+    "DOMAIN_REPUTATION_HIGH": 10,
+    "DOMAIN_REPUTATION_SUSPICIOUS": 5,
+    "URL_REPUTATION_HIGH": 10,
+    "URL_REPUTATION_SUSPICIOUS": 5,
 }
 
 
 # ---------------------------------------------------------
 # Maximum contribution from each evidence category
 # ---------------------------------------------------------
-
 CATEGORY_LIMITS = {
     "authentication": 25,
     "identity": 20,
-    "url": 20,
-    "attachment": 20,
+    "url": 15,
+    "attachment": 15,
     "content": 15,
+    "reputation": 10,
 }
 
 
@@ -108,6 +116,14 @@ INDICATOR_CATEGORIES = {
     "SUSPICIOUS_CALL_TO_ACTION": "content",
     "EXCESSIVE_EXCLAMATION": "content",
     "CREDENTIAL_REQUEST_LANGUAGE": "content",
+
+    # Reputation
+    "IP_REPUTATION_HIGH": "reputation",
+    "IP_REPUTATION_SUSPICIOUS": "reputation",
+    "DOMAIN_REPUTATION_HIGH": "reputation",
+    "DOMAIN_REPUTATION_SUSPICIOUS": "reputation",
+    "URL_REPUTATION_HIGH": "reputation",
+    "URL_REPUTATION_SUSPICIOUS": "reputation",
 }
 
 

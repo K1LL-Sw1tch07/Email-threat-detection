@@ -15,6 +15,10 @@ from app.parser.eml_parser import parse_eml
 from app.analyzer.header_analyzer import analyze_headers
 from app.analyzer.url_analyzer import analyze_urls
 from app.analyzer.scoring import calculate_threat_score
+from app.intelligence.ip_reputation import check_ip_reputation
+from app.intelligence.domain_reputation import check_domain_reputation
+from app.intelligence.url_reputation import check_url_reputation
+from app.intelligence.reputation_aggregator import aggregate_reputation
 
 
 app = FastAPI(
@@ -145,12 +149,92 @@ async def analyze_email(file: UploadFile = File(...)):
 
         result["correlations"] = correlate_email(result)
 
+        # ---------------------------------------------------------
+        # Threat Intelligence Reputation Analysis
+        # ---------------------------------------------------------
+
+        ip_reputation_results = []
+        domain_reputation_results = []
+        url_reputation_results = []
+
+        # IP reputation
+        for ip_data in ip_intelligence:
+            ip = ip_data.get("ip")
+
+            if not ip:
+                continue
+
+            # Only query reputation providers for public/global IPs
+            if not ip_data.get("is_global"):
+                continue
+
+            reputation = check_ip_reputation(ip)
+
+            if reputation.get("found"):
+                ip_reputation_results.append(reputation)
+
+
+      # Domain reputation
+        domains_to_check = set()
+
+        # Sender domain
+        sender_domain = result.get("domains", {}).get("sender_domain")
+
+        if sender_domain:
+            domains_to_check.add(
+                sender_domain.lower().rstrip(".")
+            )
+
+        # Domains found in URLs
+        for url_data in result.get("urls", []):
+            domain = url_data.get("domain")
+
+            if domain:
+                domains_to_check.add(
+                    domain.lower().rstrip(".")
+                )
+
+        # Check each unique domain
+        for domain in domains_to_check:
+            reputation = check_domain_reputation(domain)
+
+            if reputation.get("found"):
+                domain_reputation_results.append(reputation)
+
+
+                # URL reputation
+                for url_data in result.get("urls", []):
+                    url = url_data.get("url")
+
+                    if not url:
+                        continue
+
+                    reputation = check_url_reputation(url)
+
+                    if reputation.get("found"):
+                        url_reputation_results.append(reputation)
+
+
+        # Aggregate reputation findings into indicators
+        reputation_indicators = aggregate_reputation(
+            ip_results=ip_reputation_results,
+            domain_results=domain_reputation_results,
+            url_results=url_reputation_results
+        )
+
+        # Store raw reputation intelligence
+        result["ip_reputation"] = ip_reputation_results
+        result["domain_reputation"] = domain_reputation_results
+        result["url_reputation"] = url_reputation_results
+        result["reputation_indicators"] = reputation_indicators
+
         # Combine all indicators
         result["indicators"] = (
             header_indicators +
             url_indicators +
             attachment_indicators+
-            content_indicators
+            content_indicators+
+            reputation_indicators
 )
 
         # -----------------------------------------
