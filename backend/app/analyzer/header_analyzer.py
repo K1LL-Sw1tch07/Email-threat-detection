@@ -1,5 +1,27 @@
 from email.utils import parseaddr
 
+def get_organizational_domain(domain: str | None) -> str | None:
+    """
+    Return a simple organizational domain for comparison.
+
+    This allows legitimate subdomains such as:
+    em7877.tm.openai.com
+    to be treated as belonging to:
+    tm.openai.com
+    """
+
+    if not domain:
+        return None
+
+    domain = domain.lower().strip(".")
+
+    parts = domain.split(".")
+
+    if len(parts) < 2:
+        return domain
+
+    return ".".join(parts[-2:])
+
 
 def analyze_headers(parsed_email: dict) -> list[dict]:
     """
@@ -80,21 +102,42 @@ def analyze_headers(parsed_email: dict) -> list[dict]:
     return_path = headers.get("return_path")
 
     if return_path and from_addresses:
-
         return_path_email = parseaddr(return_path)[1].lower()
         from_email = from_addresses[0].lower()
 
+        from_domain = (
+            from_email.rsplit("@", 1)[1]
+            if "@" in from_email
+            else None
+        )
+
+        return_path_domain = (
+            return_path_email.rsplit("@", 1)[1]
+            if "@" in return_path_email
+            else None
+        )
+
+        from_org_domain = get_organizational_domain(
+            from_domain
+        )
+
+        return_path_org_domain = get_organizational_domain(
+            return_path_domain
+        )
+
         if (
             return_path_email
-            and return_path_email != from_email
+            and from_org_domain
+            and return_path_org_domain
+            and from_org_domain != return_path_org_domain
         ):
-
             indicators.append({
                 "type": "RETURN_PATH_MISMATCH",
                 "severity": "MEDIUM",
                 "description": (
-                    "The Return-Path address differs from "
-                    "the visible sender address."
+                    "The Return-Path address belongs to a "
+                    "different organizational domain than "
+                    "the visible sender."
                 ),
                 "from": from_email,
                 "return_path": return_path_email
