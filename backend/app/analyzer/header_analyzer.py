@@ -22,6 +22,81 @@ def get_organizational_domain(domain: str | None) -> str | None:
 
     return ".".join(parts[-2:])
 
+# -------------------------------------------------
+# Brand impersonation detection
+# -------------------------------------------------
+
+KNOWN_BRANDS = {
+    "microsoft": {
+        "domains": {
+            "microsoft.com",
+            "microsoftonline.com",
+            "office.com",
+            "live.com",
+        }
+    },
+    "google": {
+        "domains": {
+            "google.com",
+            "googlemail.com",
+        }
+    },
+    "apple": {
+        "domains": {
+            "apple.com",
+            "icloud.com",
+        }
+    },
+    "openai": {
+        "domains": {
+            "openai.com",
+        }
+    },
+}
+
+
+def _detect_brand_impersonation(
+    display_name: str,
+    sender_domain: str | None,
+) -> dict | None:
+    """
+    Detect obvious brand impersonation based on the sender
+    display name and sender domain.
+    """
+
+    if not sender_domain:
+        return None
+
+    normalized_name = display_name.strip().lower()
+    normalized_domain = sender_domain.lower().strip(".")
+
+    for brand, data in KNOWN_BRANDS.items():
+
+        if brand not in normalized_name:
+            continue
+
+        legitimate_domains = data["domains"]
+
+        if any(
+            normalized_domain == domain
+            or normalized_domain.endswith("." + domain)
+            for domain in legitimate_domains
+        ):
+            return None
+
+        return {
+            "type": "BRAND_IMPERSONATION",
+            "severity": "HIGH",
+            "description": (
+                f"The sender appears to impersonate {brand.title()} "
+                "but the sender domain is not an authorized "
+                "organizational domain."
+            ),
+            "brand": brand.title(),
+            "sender_domain": normalized_domain,
+        }
+
+    return None
 
 def analyze_headers(parsed_email: dict) -> list[dict]:
     """
@@ -150,8 +225,17 @@ def analyze_headers(parsed_email: dict) -> list[dict]:
     from_header = headers.get("from")
 
     if from_header:
-
         display_name, from_email = parseaddr(from_header)
+
+        sender_domain = domains.get("sender_domain")
+
+        brand_indicator = _detect_brand_impersonation(
+            display_name,
+            sender_domain,
+        )
+
+        if brand_indicator:
+            indicators.append(brand_indicator)
 
         suspicious_names = {
             "security",
@@ -174,7 +258,6 @@ def analyze_headers(parsed_email: dict) -> list[dict]:
         normalized_name = display_name.strip().lower()
 
         if normalized_name in suspicious_names:
-
             indicators.append({
                 "type": "SUSPICIOUS_DISPLAY_NAME",
                 "severity": "LOW",
@@ -215,14 +298,22 @@ def analyze_headers(parsed_email: dict) -> list[dict]:
     # Message-ID domain mismatch
     # -------------------------------------------------
 
+    # Message-ID mismatch
+    #
+    # Message-ID values may contain internal mail-server identifiers
+    # that are not internet domains, for example:
+    #
+    # <abc123@geopod-ismtpd-0>
+    #
+    # Do not treat such infrastructure identifiers as suspicious
+    # domain mismatches.
+
     message_id = headers.get("message_id")
 
     if message_id and sender_domain:
-
         message_id_address = parseaddr(message_id)[1]
 
         if "@" in message_id_address:
-
             message_id_domain = (
                 message_id_address
                 .rsplit("@", 1)[1]
@@ -230,8 +321,24 @@ def analyze_headers(parsed_email: dict) -> list[dict]:
                 .rstrip(".")
             )
 
-            if message_id_domain != sender_domain:
+            # Only compare Message-ID domains when the value
+            # looks like a real DNS-style domain.
+            message_id_labels = message_id_domain.split(".")
 
+            is_dns_style_domain = (
+                len(message_id_labels) >= 2
+                and all(
+                    label
+                    and label[0].isalnum()
+                    and label[-1].isalnum()
+                    for label in message_id_labels
+                )
+            )
+
+            if (
+                is_dns_style_domain
+                and message_id_domain != sender_domain
+            ):
                 indicators.append({
                     "type": "MESSAGE_ID_DOMAIN_MISMATCH",
                     "severity": "LOW",

@@ -2,7 +2,8 @@ from pathlib import Path
 import shutil
 import tempfile
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, UploadFile, Body
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.forensic.origin_analysis import analyze_origin
@@ -24,7 +25,7 @@ from app.intelligence.url_reputation import check_url_reputation
 from app.intelligence.reputation_aggregator import aggregate_reputation
 
 from app.ai.pipeline import run_ai_analysis
-
+from app.report_generator import generate_forensic_report
 
 app = FastAPI(
     title="Email Threat Detection API",
@@ -114,8 +115,9 @@ async def analyze_email(file: UploadFile = File(...)):
         # URL analysis
         # -----------------------------------------
         url_indicators = analyze_urls(
-            result.get("urls", [])
-        )
+            result["urls"],
+            sender_domain=result.get("sender_domain"),
+)
 
         # -----------------------------------------
         # Domain intelligence
@@ -373,3 +375,47 @@ async def analyze_email(file: UploadFile = File(...)):
 
         if temp_path and temp_path.exists():
             temp_path.unlink()
+
+
+@app.post("/api/email/report")
+async def generate_email_report(
+    analysis: dict = Body(...)
+):
+    """
+    Generate a downloadable PDF forensic report
+    from an existing email analysis result.
+    """
+
+    try:
+        pdf_buffer = generate_forensic_report(
+            analysis
+        )
+
+        filename = analysis.get(
+            "filename",
+            "email",
+        )
+
+        safe_filename = Path(
+            filename
+        ).stem
+
+        report_filename = (
+            f"{safe_filename}_forensic_report.pdf"
+        )
+
+        return StreamingResponse(
+            pdf_buffer,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": (
+                    f'attachment; filename="{report_filename}"'
+                )
+            },
+        )
+
+    except Exception as error:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to generate report: {error}"
+        )

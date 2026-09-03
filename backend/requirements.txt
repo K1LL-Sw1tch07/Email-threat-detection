@@ -5,4 +5,5 @@ pytest
 httpx2
 httpx
 python-dotenv
-openai
+gemini
+reportlab

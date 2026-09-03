@@ -36,6 +36,18 @@ def _is_ip_address(hostname: str) -> bool:
     except ValueError:
         return False
 
+def _get_organizational_domain(domain: str | None) -> str | None:
+    """Return a simple organizational domain for comparison."""
+    if not domain:
+        return None
+
+    domain = domain.lower().strip(".")
+    parts = domain.split(".")
+
+    if len(parts) < 2:
+        return domain
+
+    return ".".join(parts[-2:])
 
 def _is_url_shortener(domain: str) -> bool:
     """Return True if domain is a known URL-shortening service."""
@@ -48,7 +60,10 @@ def _is_url_shortener(domain: str) -> bool:
     )
 
 
-def analyze_urls(urls: list[dict]) -> list[dict]:
+def analyze_urls(
+    urls: list[dict],
+    sender_domain: str | None = None,
+) -> list[dict]:
     """
     Analyze extracted URLs for suspicious characteristics.
 
@@ -57,6 +72,7 @@ def analyze_urls(urls: list[dict]) -> list[dict]:
     """
 
     indicators = []
+    sender_org_domain = _get_organizational_domain(sender_domain)
 
     for url_data in urls:
         url = url_data.get("url", "")
@@ -76,6 +92,14 @@ def analyze_urls(urls: list[dict]) -> list[dict]:
         # If parser did not provide hostname, fall back to extracted domain.
         if not hostname and domain:
             hostname = domain.lower().rstrip(".")
+
+        url_org_domain = _get_organizational_domain(hostname)
+
+        trusted_sender_domain = (
+            sender_org_domain is not None
+            and url_org_domain is not None
+            and sender_org_domain == url_org_domain
+        )    
 
         # ---------------------------------------------
         # IP address used instead of domain
@@ -100,11 +124,13 @@ def analyze_urls(urls: list[dict]) -> list[dict]:
         if parsed.scheme.lower() == "http":
             indicators.append({
                 "type": "UNENCRYPTED_URL",
-                "severity": "MEDIUM",
+                "severity": "LOW" if trusted_sender_domain else "MEDIUM",
                 "description": (
                     "The URL uses HTTP instead of HTTPS."
                 ),
                 "url": url,
+                "domain": hostname,
+                "trusted_sender_domain": trusted_sender_domain,
             })
 
         # ---------------------------------------------
@@ -135,6 +161,7 @@ def analyze_urls(urls: list[dict]) -> list[dict]:
                 ),
                 "url": url,
                 "length": len(url),
+                "trusted_sender_domain": trusted_sender_domain,
             })
 
         # ---------------------------------------------

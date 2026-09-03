@@ -1,0 +1,50 @@
+From: Microsoft Security Team <security@micros0ft-support.example>
+To: employee@example.com
+Reply-To: account-recovery@attacker.example
+Return-Path: <bounce@attacker.example>
+Subject: URGENT: Your Microsoft Account Will Be Suspended!!!
+Date: Fri, 04 Sep 2026 10:30:00 +0530
+Message-ID: <urgent-security-93821@attacker.example>
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="----=_Boundary_12345"
+
+------=_Boundary_12345
+Content-Type: text/plain; charset="UTF-8"
+
+URGENT SECURITY ALERT!!!
+
+Your Microsoft account has been flagged for suspicious activity.
+
+You must verify your account immediately or your account will be suspended.
+
+Verify your password and credentials using the following link:
+
+http://192.0.2.123/login/verify/account/password/security/update/confirm
+
+Failure to complete verification within 24 hours will result in permanent account suspension!!!
+
+Microsoft Security Team
+
+------=_Boundary_12345
+Content-Type: text/html; charset="UTF-8"
+
+<html>
+<body>
+<h2>URGENT SECURITY ALERT!!!</h2>
+
+<p>Your Microsoft account has been flagged for suspicious activity.</p>
+
+<p>You must verify your account immediately or your account will be suspended.</p>
+
+<p>
+<a href="http://192.0.2.123/login/verify/account/password/security/update/confirm">
+Verify Your Account
+</a>
+</p>
+
+<p>Failure to complete verification within 24 hours will result in permanent account suspension!!!</p>
+
+</body>
+</html>
+
+------=_Boundary_12345--

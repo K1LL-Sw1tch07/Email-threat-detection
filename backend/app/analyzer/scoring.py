@@ -27,12 +27,13 @@ INDICATOR_SCORES = {
     # Identity
     "REPLY_TO_MISMATCH": 15,
     "REPLY_DOMAIN_MISMATCH": 10,
+    "BRAND_IMPERSONATION": 20,
 
     # URL
     "IP_BASED_URL": 20,
-    "UNENCRYPTED_URL": 10,
+    "UNENCRYPTED_URL": 2,
     "URL_SHORTENER": 10,
-    "LONG_URL": 5,
+    "LONG_URL": 1,
     "SUSPICIOUS_URL_KEYWORD": 10,
     "PUNYCODE_DOMAIN": 15,
     "EXCESSIVE_SUBDOMAINS": 5,
@@ -91,6 +92,7 @@ INDICATOR_CATEGORIES = {
     # Identity
     "REPLY_TO_MISMATCH": "identity",
     "REPLY_DOMAIN_MISMATCH": "identity",
+    "BRAND_IMPERSONATION": "identity",
 
     # URL
     "IP_BASED_URL": "url",
@@ -138,7 +140,57 @@ def _category_for(indicator_type: str) -> str:
         "other"
     )
 
+def _effective_indicator_points(indicator: dict) -> int:
+    """
+    Return the effective score for an indicator after
+    applying contextual adjustments.
+    """
 
+    indicator_type = indicator.get("type")
+
+    points = INDICATOR_SCORES.get(
+        indicator_type,
+        0
+    )
+
+    # HTTP and long URLs are weak signals when they belong
+    # to the same organizational domain as the sender.
+    if indicator.get("trusted_sender_domain"):
+        if indicator_type == "UNENCRYPTED_URL":
+            return 2
+
+        if indicator_type == "LONG_URL":
+            return 1
+
+    return points
+
+def _group_indicators(indicators: list[dict]) -> list[dict]:
+    """
+    Group repeated indicators for clean forensic presentation.
+
+    Individual indicators remain available for scoring, while
+    repeated indicators of the same type are represented once
+    with an occurrence count.
+    """
+    grouped = {}
+
+    for indicator in indicators:
+        indicator_type = indicator.get("type")
+
+        if not indicator_type:
+            continue
+
+        if indicator_type not in grouped:
+            grouped[indicator_type] = {
+                "type": indicator_type,
+                "severity": indicator.get("severity"),
+                "description": indicator.get("description"),
+                "count": 0,
+            }
+
+        grouped[indicator_type]["count"] += 1
+
+    return list(grouped.values())
 # ---------------------------------------------------------
 # Main scoring function
 # ---------------------------------------------------------
@@ -163,21 +215,65 @@ def calculate_threat_score(
     # Calculate raw indicator scores
     # -----------------------------------------------------
 
-    for indicator in indicators:
+        # -----------------------------------------------------
+    # Calculate raw indicator scores
+    # -----------------------------------------------------
 
+    # Prevent identical URL indicators from being counted
+    # repeatedly for scoring purposes.
+    #
+    # IMPORTANT:
+    # The original indicators are still preserved in the
+    # final forensic report.
+
+    scored_indicators = set()
+
+    for indicator in indicators:
         indicator_type = indicator.get("type")
 
-        points = INDICATOR_SCORES.get(
-            indicator_type,
-            0
-        )
+        # Build a deduplication key.
+        #
+        # For URL indicators, include the URL/domain so that:
+        #   same URL + same indicator -> counted once
+        #
+        # but:
+        #   different URLs -> can still contribute separately.
+        if indicator_type in {
+            "IP_BASED_URL",
+            "UNENCRYPTED_URL",
+            "URL_SHORTENER",
+            "LONG_URL",
+            "SUSPICIOUS_URL_KEYWORD",
+            "PUNYCODE_DOMAIN",
+            "EXCESSIVE_SUBDOMAINS",
+        }:
+            dedupe_value = (
+                indicator.get("url")
+                or indicator.get("domain")
+                or ""
+            )
+
+            dedupe_key = (
+                indicator_type,
+                dedupe_value.lower()
+                if isinstance(dedupe_value, str)
+                else str(dedupe_value),
+            )
+        else:
+            # Non-URL indicators are deduplicated by type.
+            dedupe_key = (indicator_type,)
+
+        if dedupe_key in scored_indicators:
+            continue
+
+        scored_indicators.add(dedupe_key)
+
+        points = _effective_indicator_points(indicator)
 
         if points <= 0:
             continue
 
-        category = _category_for(
-            indicator_type
-        )
+        category = _category_for(indicator_type)
 
         category_totals[category] += points
 
@@ -340,14 +436,24 @@ def calculate_threat_score(
     # Evidence
     # -----------------------------------------------------
 
-    evidence = [
+    grouped_indicators = _group_indicators(indicators)
 
-        indicator.get("description")
+    evidence = []
 
-        for indicator in indicators
+    for indicator in grouped_indicators:
+        description = indicator.get("description")
 
-        if indicator.get("description")
-    ]
+        if not description:
+            continue
+
+        count = indicator.get("count", 1)
+
+        if count > 1:
+            evidence.append(
+                f"{description} ({count} occurrences)"
+            )
+        else:
+            evidence.append(description)
 
 
     # -----------------------------------------------------
@@ -417,6 +523,8 @@ def calculate_threat_score(
         "breakdown": raw_breakdown,
 
         "category_breakdown": category_breakdown,
+
+        "threat_indicators": grouped_indicators,
 
         "evidence": evidence,
 
