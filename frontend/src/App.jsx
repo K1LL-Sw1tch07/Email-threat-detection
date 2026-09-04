@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import {
   AlertTriangle,
   ShieldAlert,
@@ -15,6 +14,13 @@ import {
   Fingerprint,
   ChevronRight,
 } from "lucide-react";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+
+import markerIcon from "leaflet/dist/images/marker-icon.png";
+import markerIconRetina from "leaflet/dist/images/marker-icon-2x.png";
+import markerShadow from "leaflet/dist/images/marker-shadow.png";
+import { useEffect, useState } from "react";
 import {
   MapContainer,
   TileLayer,
@@ -23,7 +29,20 @@ import {
   Polyline,
 } from "react-leaflet";
 
-const API_BASE = "http://127.0.0.1:8000";
+const API_BASE = "";
+
+const defaultMarkerIcon = L.icon({
+  iconUrl: markerIcon,
+  iconRetinaUrl: markerIconRetina,
+  shadowUrl: markerShadow,
+
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
+});
+
+L.Marker.prototype.options.icon = defaultMarkerIcon;
 
 function OriginMap({ origin, destination }) {
   if (

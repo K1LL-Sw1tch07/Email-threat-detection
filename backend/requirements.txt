@@ -5,5 +5,7 @@ pytest
 httpx2
 httpx
 python-dotenv
-gemini
+google-genai
 reportlab
+dnspython
+geoip2

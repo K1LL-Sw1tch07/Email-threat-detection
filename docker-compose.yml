@@ -1,0 +1,21 @@
+services:
+
+  backend:
+    build:
+      context: ./backend
+    container_name: email-threat-backend
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: email-threat-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
