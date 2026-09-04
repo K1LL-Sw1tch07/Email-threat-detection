@@ -1,0 +1,413 @@
+Delivered-To: bolt.study107@gmail.com
+Received: by 2002:a05:7022:3d82:b0:142:df38:2a89 with SMTP id uj2csp4399774dlb;
+        Wed, 2 Sep 2026 11:08:05 -0700 (PDT)
+X-Received: by 2002:a05:6214:dc5:b0:90e:8a5c:fb6c with SMTP id 6a1803df08f44-90ebb002452mr93784046d6.4.1788372485614;
+        Wed, 02 Sep 2026 11:08:05 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1788372485; cv=none;
+        d=google.com; s=arc-20260327;
+        b=Z/g+NzUuZn3RwHFQQR8RTBt5ZhXX0vjR7Uw4aeznt0wYUJ4wfje9UwX+pIBbDHHDHZ
+         sMzg7Ob0PjnpaB641OkdtwRhanpTDDhhI9ww7JdI2hciG+e+V34j8OxiNDWIQdh2hqPI
+         yaNHDydcBPHuI/HeWKWnlcXL2RNEKbuqKvnOgfnp1ikPeVhvsXtk97MB1qPJ51KN9GLX
+         zqrQQVVeqkUaRmBMqexpWG2nqNmjGKdwcFmqSCh0EwIVYVmZtMEGMsTaPs0V/2CU4XEc
+         5xdLAGasj7Ye2cfnKuS2YIjYfFL9plxhXVj1V49lRwR4sMnSS+46vqdF+wdFbHTTY7X3
+         0WGg==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20260327;
+        h=to:reply-to:subject:message-id:mime-version:from:date
+         :content-transfer-encoding:dkim-signature:dkim-signature;
+        bh=kQOmwe3tjtywHNQh0s2Z7lgzWJR7Pm2IAfLMwO7eE/8=;
+        fh=SzyM2/Ar2HUYhWmZOXRPyIbxL595UMfX1xck35ePPiY=;
+        b=ErEShkjExI64RsWeZyPLSTpeeV9o2WLfiSJ4sGg/4jnpG8+69evN6lvqeifWqmHAa9
+         IynF5sVP+Y4ey8W4fQICtZLB/mqVs2MfCQvspd6ClQwJ6KCxrWE+QcWfWAYlwj7HIJ86
+         zJ81j3nacBb68nddAoOPuCgRtJkHvquUPuNBCMANbfyqkbM9eH0gG9SrlSfDXz3wGvmg
+         OUEYU/JwDvwxNtDeNbnYw5Arn11KB4VX0YSBkaNdUbSyJGIGShob3qD5wpSdOQyeH5Ny
+         prIJ/xgxIAyw3M7zC26fZoaN4xheWRkOhXVzs6wQxRWBCKzJVGVkvPb9+27KP/cuaVRk
+         dJjw==;
+        dara=google.com
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@tm.openai.com header.s=s1 header.b=nPvOTYYV;
+       dkim=pass header.i=@sendgrid.info header.s=smtpapi header.b=vJ5kdV3M;
+       spf=pass (google.com: domain of bounces+20216706-ce52-bolt.study107=gmail.com@em7877.tm.openai.com designates 134.128.98.111 as permitted sender) smtp.mailfrom="bounces+20216706-ce52-bolt.study107=gmail.com@em7877.tm.openai.com";
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=tm.openai.com
+Return-Path: <bounces+20216706-ce52-bolt.study107=gmail.com@em7877.tm.openai.com>
+Received: from o47.ptr7711.openai.com (o47.ptr7711.openai.com. [134.128.98.111])
+        by mx.google.com with ESMTPS id 6a1803df08f44-90e9eea91bdsi30003666d6.33.2026.09.02.11.08.05
+        for <bolt.study107@gmail.com>
+        (version=TLS1_3 cipher=TLS_AES_128_GCM_SHA256 bits=128/128);
+        Wed, 02 Sep 2026 11:08:05 -0700 (PDT)
+Received-SPF: pass (google.com: domain of bounces+20216706-ce52-bolt.study107=gmail.com@em7877.tm.openai.com designates 134.128.98.111 as permitted sender) client-ip=134.128.98.111;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@tm.openai.com header.s=s1 header.b=nPvOTYYV;
+       dkim=pass header.i=@sendgrid.info header.s=smtpapi header.b=vJ5kdV3M;
+       spf=pass (google.com: domain of bounces+20216706-ce52-bolt.study107=gmail.com@em7877.tm.openai.com designates 134.128.98.111 as permitted sender) smtp.mailfrom="bounces+20216706-ce52-bolt.study107=gmail.com@em7877.tm.openai.com";
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=tm.openai.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=tm.openai.com;
+	h=content-transfer-encoding:content-type:date:from:mime-version:subject:
+	reply-to:to:cc:content-type:date:feedback-id:from:subject:to;
+	s=s1; t=1788372484;
+	bh=kQOmwe3tjtywHNQh0s2Z7lgzWJR7Pm2IAfLMwO7eE/8=;
+	b=nPvOTYYVQxZJCmM8CwoNhLdvpFiu5L633C8363/wjZlOSgQZx8aRQTv1hO/xF3ZP2zBP
+	uF/aDK/One0XmWzw/HwpoRfztPeOvjvCUmhQh+8YwdHbPbD2uzL+XZi7CtJHKPTWG7ys8C
+	9VeDgDVz+9+/GfEzRS7L78xogwjoRL6XBtc8QSjwjoL/Pm6ue/i02PxxmupielitF7inlK
+	GW7UydlgPeWNQYXQ8jjOvwG5HoT9orSX0h6RT7RilWUECs9kpjOxmgWikYKe5bQb5KhV2c
+	j0aO38L1f525feJqS2B+Gepy71dEwFhcx+tKE90TdwpN/5FSprbDKncymCw30Bpg==
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=sendgrid.info;
+	h=content-transfer-encoding:content-type:date:from:mime-version:subject:
+	reply-to:to:cc:content-type:date:feedback-id:from:subject:to;
+	s=smtpapi; t=1788372484;
+	bh=kQOmwe3tjtywHNQh0s2Z7lgzWJR7Pm2IAfLMwO7eE/8=;
+	b=vJ5kdV3Mm4gO/eEtTmED5wr2zIG96TtsJJ/Oy5i/FuRl7FMe9HqW7LUjSFYhJ+O8X4Ms
+	R7byGDA5yKJQkMutLOUslVD4t7SCetOY8KAslLG1zzppDEojAOJ1WUE2od5+7fxg6EVLaz
+	kXNaYECrjDOiGk7bT/oMqHeV+KvJrbSn0=
+Received: by recvd-5c8f44b778-j76tx with SMTP id recvd-5c8f44b778-j76tx-1-6A986604-12F
+	2026-09-02 18:08:04.656578055 +0000 UTC m=+3107848.052482482
+Received: from MjAyMTY3MDY (unknown)
+	by geopod-ismtpd-0 (SG) with HTTP
+	id H7sDcsVlTEGMIcSgBVdxsQ
+	Wed, 02 Sep 2026 18:08:04.623 +0000 (UTC)
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/html; charset=us-ascii
+Date: Wed, 02 Sep 2026 18:08:04 +0000 (UTC)
+From: OpenAI <noreply@tm.openai.com>
+Mime-Version: 1.0
+Message-ID: <H7sDcsVlTEGMIcSgBVdxsQ@geopod-ismtpd-0>
+Subject: New sign-in to your OpenAI account
+Reply-To: noreply@tm.openai.com
+X-SG-EID: 
+ =?us-ascii?Q?u001=2EpDXn7XyDvIUG5VuGYC+VAIfgfX9p=2FPJ3k8Jf5bQDbJRHqG9Z2eZPlPn4a?=
+ =?us-ascii?Q?Y8Btia0d2MaDOeLesAK7SWsR3PIjUn12DPumuyo?=
+ =?us-ascii?Q?3yFGYLSj05UjdSC5OUOovki4YCENYg18asKtB+A?=
+ =?us-ascii?Q?hSbBFH0heW+D+F5sv=2FBsdqgpgvytnNLdJvFS71v?=
+ =?us-ascii?Q?bv1TjUws1JNI8VnZgsJfuyjfJQJolrwZidomyAL?=
+ =?us-ascii?Q?Bxf57D3O6nHP3k9dIrZf8n7Zien5TWnOhBkH6nF?= =?us-ascii?Q?3a8=2F?=
+X-SG-ID: 
+ =?us-ascii?Q?u001=2ESdBcvi+Evd=2FbQef8eZF3BoMNuFmcP5rq+Py=2FzrrMdK6QuthCfWhsA2OXF?=
+ =?us-ascii?Q?d2ogPal5ecNFS2d9sR6gemXdd8Z7haYPWzNeVm8?=
+ =?us-ascii?Q?pN2N9SN6k4F4FBoFdeqW0leBJVoTD74LZ7TlpLF?=
+ =?us-ascii?Q?2zVNsLnlPY08rbxnd5eUU5E3f6hy6uasCmtIXKO?=
+ =?us-ascii?Q?gRQDlXJx=2FlgoKH25=2FNh+NCRHJQAXKQETJvENmmj?=
+ =?us-ascii?Q?tbpqviXMtboqcaRXc1G8mU=3D?=
+To: bolt.study107@gmail.com
+X-Entity-ID: u001.bVuJR+6WQkYgHBZFem2ybw==
+
+<!DOCTYPE html>
+<html>
+<head>
+ =20
+  <meta charset=3D"utf-8">
+  <meta http-equiv=3D"x-ua-compatible" content=3D"ie=3Dedge">
+  <title>New sign-in to your OpenAI account</title>
+  <meta name=3D"viewport" content=3D"width=3Ddevice-width, initial-scale=3D=
+1">
+  <style type=3D"text/css">
+  /**
+   * Google webfonts. Recommended to include the .woff version for cross-cl=
+ient compatibility.
+   */
+  @media screen {
+    @font-face {
+      font-family: Colfax;
+      src: url(https://openai-public.s3-us-west-2.amazonaws.com/beta/fonts/=
+ColfaxAIRegular.woff2);
+      font-weight: normal;
+    }
+
+    @font-face {
+      font-family: Colfax;
+      src: url(https://openai-public.s3-us-west-2.amazonaws.com/beta/fonts/=
+ColfaxAIMedium.woff2);
+      font-weight: bold;
+    }
+  }
+
+  /**
+   * Avoid browser level font resizing.
+   * 1. Windows Mobile
+   * 2. iOS / OSX
+   */
+  body,
+  table,
+  td,
+  a {
+    -ms-text-size-adjust: 100%; /* 1 */
+    -webkit-text-size-adjust: 100%; /* 2 */
+    font-family: Colfax, Helvetica, Arial, sans-serif;
+  }
+
+  /**
+   * Remove extra space added to tables and cells in Outlook.
+   */
+  table,
+  td {
+    mso-table-rspace: 0pt;
+    mso-table-lspace: 0pt;
+  }
+
+  /**
+   * Better fluid images in Internet Explorer.
+   */
+  img {
+    -ms-interpolation-mode: bicubic;
+  }
+
+  /**
+   * Remove blue links for iOS devices.
+   */
+  a[x-apple-data-detectors] {
+    font-family: inherit !important;
+    font-size: inherit !important;
+    font-weight: inherit !important;
+    line-height: inherit !important;
+    color: inherit !important;
+    text-decoration: none !important;
+  }
+
+  /**
+   * Fix centering issues in Android 4.4.
+   */
+  div[style*=3D"margin: 16px 0;"] {
+    margin: 0 !important;
+  }
+
+  body {
+    width: 100% !important;
+    height: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /**
+   * Collapse table borders to avoid space between cells.
+   */
+  table {
+    border-collapse: collapse !important;
+  }
+
+  a {
+    color: #10A37F;
+  }
+
+  img {
+    height: auto;
+    line-height: 100%;
+    text-decoration: none;
+    border: 0;
+    outline: none;
+  }
+
+  h1 {
+      font-size: 26px;
+      line-height: 1.4;
+      font-weight: 700;
+      margin: 0;
+  }
+  h2 {
+      font-size: 24px;
+      line-height: 1.4;
+      font-weight: 700;
+      margin: 0;
+  }
+  p {
+      margin: 0;
+  }
+  p + p {
+      margin-top: 16px;
+  }
+
+  @media only screen and (max-width: 480px) {
+    .prospect-generated-preview-wrapper {
+      padding: 0 12px 16px !important;
+    }
+
+    .prospect-generated-preview-media {
+      width: 96px !important;
+      min-width: 96px !important;
+      max-width: 96px !important;
+    }
+
+    .prospect-generated-preview-image {
+      width: 96px !important;
+      min-width: 96px !important;
+      max-width: 96px !important;
+      height: 96px !important;
+    }
+
+    .prospect-generated-preview-content {
+      padding: 12px !important;
+    }
+  }
+  </style>
+
+ =20
+</head>
+<body style=3D"background-color: #ffffff;">
+
+  <div class=3D"preheader" style=3D"display: none; max-width: 0; max-height=
+: 0; overflow: hidden; font-size: 1px; line-height: 1px; color: #fff; opaci=
+ty: 0;">
+     =20
+New sign-in details for your OpenAI account.
+
+  </div>
+
+  <!-- start body -->
+  <table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" width=3D"100%">
+    <!-- start body block -->
+    <tr>
+      <td align=3D"center">
+        <!--[if (gte mso 9)|(IE)]>
+        <table align=3D"center" border=3D"0" cellpadding=3D"0" cellspacing=
+=3D"0" width=3D"560">
+        <tr>
+        <td align=3D"center" valign=3D"top" width=3D"560">
+        <![endif]-->
+        <table align=3D"center" border=3D"0" cellpadding=3D"0" cellspacing=
+=3D"0" width=3D"100%" style=3D"width: 100%; max-width: 560px; background-co=
+lor: #fff;">
+           =20
+              <!-- header image -->
+              <tr>
+                  <td valign=3D"top" style=3D"padding: 27px 20px 24px 15px;=
+">
+                      <table align=3D"left" width=3D"100%" border=3D"0" cel=
+lpadding=3D"0" cellspacing=3D"0" style=3D"min-width:100%;">
+                          <tbody><tr>
+                              <td valign=3D"top" style=3D"padding-top: 0; p=
+adding-bottom: 0; text-align:left;">
+                                 =20
+                                  <img align=3D"left" alt=3D"" src=3D"https=
+://cdn.openai.com/API/logo-assets/openai-logo-email-header-1.png" width=3D"=
+140" height=3D"42" style=3D"width:140px; max-width:100%; padding-bottom: 0;=
+ display: inline !important; vertical-align: bottom;">
+                                 =20
+                              </td>
+                          </tr>
+                          </tbody></table>
+                  </td>
+              </tr>
+           =20
+
+         =20
+<tr>
+  <td align=3D"left" bgcolor=3D"#ffffff" style=3D"padding: 16px 24px; font-=
+size: 16px; line-height: 24px; color: #000000;">
+    <p>Hello,</p>
+    <p>
+      We noticed a new sign-in to your OpenAI account.
+    </p>
+   =20
+    <p><strong>App</strong>: OpenAI Platform</p>
+   =20
+   =20
+    <p><strong>Time</strong>: September 02, 2026 at 11:38 PM (IST)</p>
+   =20
+   =20
+    <p><strong>Approximate location</strong>: Indore, IN</p>
+   =20
+   =20
+    <p><strong>Device</strong>: Chrome on Windows</p>
+   =20
+    <p>&nbsp;</p>
+    <p>
+      If this was you, no action is needed.
+    </p>
+    <p>
+      If you don't recognize this activity, please
+      <a
+        href=3D"http://url3243.email.openai.com/ls/click?upn=3Du001.IQLfsj4=
+kk-2BK7JhymNusRMvWmnkLomVjgxFpxUVYEkxqorI8ICh1R9gUvwGo-2FHXAoyX1Cja-2Bpu31x=
+J28JRCCCF0gvzJqef0QT75qbwaBkC7Y-3DSqUG_-2FApc35hvO7c-2FBE-2BAUZdm1oBS7RRmiN=
+Qrbi1Pz-2FPj57zOeIO9NEWUoGAliWXAhL5Y47ClU7mewCvnerseOlbyh-2FjnNfJrZCUzs-2Fm=
+46kMp-2F5NU72cCHLxa-2BkFII2B6OwLwLHNu7VO6j-2FfuGSxLdD-2BFCsAHrctoKIrOTR1-2B=
+rhoTt1KLc-2FdnVoTMsI3wx-2FAZrIOWLslYF-2FpCGRyQVgEEa-2FRQyO-2Bqyg1d-2BZQryab=
+umilN5R73QNHejRnZwnUHeNiRAsXeGIQMf4ArDbpL955iEaISzzrGVqbT0UT31MTaljutkNEh55=
+AU-2FHToshb9E4D5e5bnmQODIK0O7N1AYK7-2BQoMpkxiRAB3f95O70OQVeJyF-2FO-2BUPnusV=
+SqcmDd1D6AhbnSu0S63-2FRMh5oG1vF-2BVeqH0wP7cTeAuaaA6ptZzpKT65ho-3D"
+        style=3D"color: #000000; text-decoration: underline;"
+      >
+        review your account security
+      </a>
+      right away.
+    </p>
+    <p>&nbsp;</p>
+    <p>
+      Best,<br />
+      <strong>OpenAI</strong>
+    </p>
+  </td>
+</tr>
+
+
+        </table>
+        <!--[if (gte mso 9)|(IE)]>
+        </td>
+        </tr>
+        </table>
+        <![endif]-->
+      </td>
+    </tr>
+    <!-- end body block -->
+
+    <!-- start footer -->
+    <tr>
+      <td align=3D"center" style=3D"padding: 24px;">
+        <!--[if (gte mso 9)|(IE)]>
+        <table align=3D"center" border=3D"0" cellpadding=3D"0" cellspacing=
+=3D"0" width=3D"600">
+        <tr>
+        <td align=3D"center" valign=3D"top" width=3D"600">
+        <![endif]-->
+        <table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" width=3D"10=
+0%" style=3D"max-width: 560px;">
+           =20
+<tr>
+  <td align=3D"left" style=3D"padding: 4px 24px; font-size: 14px; line-heig=
+ht: 20px; color: #000000;">
+    <p style=3D"margin: 0;">
+      If you have any questions please contact us through our
+      <a
+        href=3D"http://url3243.email.openai.com/ls/click?upn=3Du001.IQLfsj4=
+kk-2BK7JhymNusRMmfwoG2v3nTgHW39-2Fobue0vS8iPJK05Qsdjl1qKLmoz-2FDYIw_-2FApc3=
+5hvO7c-2FBE-2BAUZdm1oBS7RRmiNQrbi1Pz-2FPj57zOeIO9NEWUoGAliWXAhL5Y47ClU7mewC=
+vnerseOlbyh-2FjnNfJrZCUzs-2Fm46kMp-2F5NU72cCHLxa-2BkFII2B6OwLwLHNu7VO6j-2Ff=
+uGSxLdD-2BFCsAHrctoKIrOTR1-2BrhoTt1KLc-2FdnVoTMsI3wx-2FAZrIOWLslYF-2FpCGRyQ=
+VgEEa-2FRQyO-2Bqyg1d-2BZQryabumilN5R5feyrT01J9f5lYVKFh5nZrQ428X42RYuG-2F2W9=
+VXs2AeBPbCJODPdEl2scQdtLwcxt7iOP4uYRMisQkyPIKYrZknREtEwh0ECp-2BcpU-2F7CdW80=
+LoL4kHElUAwUB5NU6JZYClkFfT-2FheMMosMsPWbJsx8OdXYiwbKZqEcu87M-2F-2FAOYvo2iG7=
+vHsBQ93a2AZ-2FG2S0-3D"
+        style=3D"color: #000000; text-decoration: underline;"
+      >help center</a>
+    </p>
+  </td>
+</tr>
+
+        </table>
+        <!--[if (gte mso 9)|(IE)]>
+        </td>
+        </tr>
+        </table>
+        <![endif]-->
+      </td>
+    </tr>
+    <!-- end footer -->
+
+  </table>
+  <!-- end body -->
+  <div class=3D"debug-string" style=3D"display: none; max-width: 0; max-hei=
+ght: 0; overflow: hidden; font-size: 1px; line-height: 1px; color: #ececf1;=
+ opacity: 0;">
+     =20
+  </div>
+
+<img src=3D"http://url3243.email.openai.com/wf/open?upn=3Du001.TV4LPOk9KZWs=
+oUIQfmu01kaamx8jyxgPm4thTG2C1RglynFxWeOaEBktPOLeEHLtz1loJcXzkwha-2FAdUYPm85=
+TNWES90cezPuPANRB3Yn2iJG-2BHs0LmhU4ZOTxX16q2BIQnrCm9voTPlCdQ8gOr4NQsuTE4osD=
+EIPYZm5yLRalKyTstIJGctoYbaDFB-2BhsYsxSbsmjVqzmdhFObDC0r1C0PHDRGWOjBb-2FYtye=
+6OZDObecGeAGBWPd6ekiSULym-2BCZ8nyJ5eCWMACbi6NnUmdTLyd-2FGA5Jna5-2BDUUzdhVgl=
+QU3yfp1F8Im67aC4Wjla11R7i82zLzwZJV8QCl71rppG0IaGG-2BtjJx1Cr0e1j-2Bdb15D-2FR=
+o6QTtoD45CRtiQ8csKuN4FEzbPwZHMJuBQtd9puiQXf-2FbBMGNm93B5pvaDRA-3D" alt=3D""=
+ width=3D"1" height=3D"1" border=3D"0" style=3D"height:1px !important;width=
+:1px !important;border-width:0 !important;margin-top:0 !important;margin-bo=
+ttom:0 !important;margin-right:0 !important;margin-left:0 !important;paddin=
+g-top:0 !important;padding-bottom:0 !important;padding-right:0 !important;p=
+adding-left:0 !important;"/></body>
+</html>
