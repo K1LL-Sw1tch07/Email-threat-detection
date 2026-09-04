@@ -144,6 +144,93 @@ button, input { font: inherit; }
   border: 1px solid rgba(255, 255, 255, 0.08);
   opacity: 0.7;
 }
+.relay-map-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.relay-map-header strong {
+  display: block;
+  font-size: 14px;
+}
+
+.relay-map-header span {
+  display: block;
+  margin-top: 3px;
+  font-size: 12px;
+  opacity: 0.65;
+}
+
+.relay-hop-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.relay-hop {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.relay-hop-number {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.relay-hop-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.relay-hop-info strong,
+.relay-hop-info span,
+.relay-hop-info small {
+  display: block;
+}
+
+.relay-hop-info strong {
+  font-size: 12px;
+}
+
+.relay-hop-info span {
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+.relay-hop-info small {
+  font-size: 11px;
+  opacity: 0.55;
+  margin-top: 2px;
+}
+
+.relay-hop-arrow {
+  opacity: 0.45;
+}
+
+.origin-map {
+  width: 100%;
+  overflow: hidden;
+  border-radius: 12px;
+}
+
+.origin-map .leaflet-container {
+  border-radius: 10px;
+}
 @media (max-width: 800px) {
   .header { padding: 17px 20px; }
   .status { display: none; }
